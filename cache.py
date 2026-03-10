@@ -1,4 +1,3 @@
-from locale import locale_alias
 import redis
 import os
 from dotenv import load_dotenv

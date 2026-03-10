@@ -1,4 +1,4 @@
-from fastapi import Path, FastAPI, Depends, HTTPException, BackgroundTasks, Response
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Response
 from sqlalchemy.orm import Session
 from starlette import status
 import uuid
@@ -11,20 +11,19 @@ import base62
 import cache
 
 import url_repository
-import utils
+
+from dependencies import get_valid_url_id, rate_limit
 
 models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI()
 
-def get_valid_url_id(short_code: str = Path(...)) -> int:
-    try:
-        return utils.decode_short_code(short_code)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid short code")
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return Response(status_code=204)
 
 @app.post("/shorten", response_model=schemas.URLItem, status_code=status.HTTP_201_CREATED)
-def shorten_url(item: schemas.URLItemCreate, db: Session = Depends(database.get_db)):
+def shorten_url(item: schemas.URLItemCreate, db: Session = Depends(database.get_db), _ = Depends(rate_limit)):
     temp_code = f"temp_{uuid.uuid4().hex[:8]}"
 
     new_url = models.URLItem(
@@ -49,8 +48,9 @@ def redirect_to_url(background_task: BackgroundTasks, url_id: int = Depends(get_
     cached_url = cache.redis_client.get(cache_key)
     if cached_url:
         print("Cached URL found")
-        background_task.add_task(cache.redis_client.set, cache_key, url_id, ex=3600)
-        return RedirectResponse(url=cached_url.decode())
+        
+        background_task.add_task(url_repository.increment_access_count, url_id, db)
+        return RedirectResponse(url=cached_url if isinstance(cached_url, str) else cached_url.decode())
 
     url_item = url_repository.get_url_by_url_id(url_id, db)
 
