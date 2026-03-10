@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
+from fastapi import Path, FastAPI, Depends, HTTPException, BackgroundTasks, Response
 from sqlalchemy.orm import Session
 from starlette import status
 import uuid
@@ -9,11 +9,18 @@ import models
 import schemas
 import base62
 
-import user_repository
+import url_repository
+import utils
 
 models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI()
+
+def get_valid_url_id(short_code: str = Path(...)) -> int:
+    try:
+        return utils.decode_short_code(short_code)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid short code")
 
 @app.post("/shorten", response_model=schemas.URLItem, status_code=status.HTTP_201_CREATED)
 def shorten_url(item: schemas.URLItemCreate, db: Session = Depends(database.get_db)):
@@ -36,21 +43,27 @@ def shorten_url(item: schemas.URLItemCreate, db: Session = Depends(database.get_
     return new_url
 
 @app.get("/{short_code}")
-def redirect_to_url(short_code: str, background_task: BackgroundTasks, db: Session = Depends(database.get_db)):
-    user_id = user_repository.get_url_by_short_code(short_code, db).id
-    url_item = user_repository.get_url_by_user_id(short_code, db)
+def redirect_to_url(background_task: BackgroundTasks, url_id: int = Depends(get_valid_url_id), db: Session = Depends(database.get_db)):
+    url_item = url_repository.get_url_by_url_id(url_id, db)
 
     if not url_item:
         raise HTTPException(status_code=404, detail="Error fetching URL")
 
-    background_task.add_task(user_repository.increment_access_count, user_id, db)
+    background_task.add_task(url_repository.increment_access_count, url_item.id, db)
     return RedirectResponse(url=url_item.url)
 
 @app.get("/{short_code}/stats", response_model=schemas.URLItem)
-def get_url_stats(short_code: str, db: Session = Depends(database.get_db)):
-    url_item = user_repository.get_url_by_short_code(short_code, db)
+def get_url_stats(url_id: int = Depends(get_valid_url_id), db: Session = Depends(database.get_db)):
+    url_item = url_repository.get_url_by_url_id(url_id, db)
 
     if not url_item:
-        raise HTTPException(status_code=404, detail="URL not found")
+        raise HTTPException(status_code=404, detail="Error fetching URL")
     
     return url_item
+
+@app.delete("/{short_code}", status_code=status.HTTP_204_NO_CONTENT)
+def detlete_url(url_id: int = Depends(get_valid_url_id), db: Session = Depends(database.get_db)):
+    success = url_repository.delete_url(url_id, db)
+    if not success:
+        raise HTTPException(status_code=404, detail="Error deleting URL")
+    return Response(status_code=status.HTTP_204_NO_CONTENT, content=None)

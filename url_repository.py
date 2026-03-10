@@ -1,0 +1,28 @@
+from sqlalchemy import delete, update
+from sqlalchemy.orm import Session
+
+from models import URLItem
+
+def get_url_by_url_id(url_id: int, db: Session) -> URLItem | None:
+    return db.query(URLItem).filter(URLItem.id == url_id).first()
+
+def increment_access_count(url_id: int, db: Session) -> URLItem | None:
+    stmt = (
+        update(URLItem)
+        .where(URLItem.id == url_id)
+        .values(access_count=URLItem.access_count + 1)
+    )
+    db.execute(stmt)
+    db.commit()
+    return db.query(URLItem).filter(URLItem.id == url_id).first()
+
+def delete_url(url_id: int, db: Session) -> bool:
+    stmt = (
+        delete(URLItem)
+        .where(URLItem.id == url_id)
+    )
+
+    result = db.execute(stmt)
+    db.commit()
+
+    return result.rowcount > 0
