@@ -76,4 +76,6 @@ def detlete_url(url_id: int = Depends(get_valid_url_id), db: Session = Depends(d
     success = url_repository.delete_url(url_id, db)
     if not success:
         raise HTTPException(status_code=404, detail="Error deleting URL")
+
+    cache.redis_client.delete(f"url:{url_id}")
     return Response(status_code=status.HTTP_204_NO_CONTENT, content=None)
