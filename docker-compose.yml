@@ -1,32 +1,52 @@
+version: "3.8"
+
 services:
+  api:
+    build: .
+    container_name: url_shortener_api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://admin:password123@db:5432/url_shortener
+      - REDIS_URL=redis://cache:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+
   db:
     image: postgres:15-alpine
-    container_name: url_postgres
+    container_name: url_shortener_db
+    restart: always
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: password123
-      POSTGRES_DB: url_shortener
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password123
+      - POSTGRES_DB=url_shortener
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d url_shortener"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   cache:
     image: redis:7-alpine
-    container_name: url_redis
+    container_name: url_shortener_cache
+    restart: always
     ports:
       - "6379:6379"
-
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: url_pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: password123
-    ports:
-      - "5050:80"
-    depends_on:
-      - db
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
+  redis_data:
