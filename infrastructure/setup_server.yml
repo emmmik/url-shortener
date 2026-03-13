@@ -1,0 +1,21 @@
+---
+- name: Install Docker on Frankfurt Server
+  hosts: webservers
+  become: yes
+
+  tasks:
+    - name: Step 1 - Update the phonebook
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Step 2 - Install Docker
+      apt:
+        name: docker.io
+        state: present
+
+    - name: Step 3 - Turn on the Docker Engine
+      systemd:
+        name: docker
+        state: started
+        enabled: yes

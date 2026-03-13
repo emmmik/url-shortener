@@ -1,0 +1,27 @@
+name: Deploy URL Shortener to AWS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: SSH into AWS and Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            if [ ! -d "/home/ubuntu/url-shortener" ]; then
+              git clone https://github.com/emmmik/url-shortener.git /home/ubuntu/url-shortener
+            fi
+
+            cd /home/ubuntu/url-shortener
+            git pull origin main
+
+            sudo docker compose up -d --build

@@ -43,3 +43,14 @@ htmlcov/
 # Misc
 *.log
 *.tmp
+
+# Terraform State and Plugins
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.tfstate.lock.info
+.terraform.lock.hcl
+
+# Ansible
+inventory.ini
+*.retry
