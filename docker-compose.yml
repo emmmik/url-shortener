@@ -5,7 +5,7 @@ services:
     build: .
     container_name: url_shortener_api
     ports:
-      - "8000:8000"
+      - "80:8000"
     environment:
       - DATABASE_URL=postgresql://admin:password123@db:5432/url_shortener
       - REDIS_URL=redis://cache:6379/0
