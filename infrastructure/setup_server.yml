@@ -9,11 +9,16 @@
         update_cache: yes
         cache_valid_time: 3600
 
-    - name: Step 2 - Install Docker and Docker Compose
+    - name: Step 2 - Remove Compose V1
+      apt:
+        name: docker-compose
+        state: absent
+
+    - name: Step 3 - Install Docker and Compose V2
       apt:
         name:
           - docker.io
-          - docker-compose
+          - docker-compose-v2
         state: present
 
     - name: Step 3 - Turn on the Docker Engine
