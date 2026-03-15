@@ -17,7 +17,7 @@ class URLItemCreate(URLItemBase):
             if not ALIAS_REGEX.match(v):
                 raise ValueError("Custom alias must contain only letters and numbers")
             if len(v) < 5 or len(v) > 20:
-                raise ValueError("Custom alias must be between 3 and 20 characters long")
+                raise ValueError("Custom alias must be between 5 and 20 characters long")
         return v
 
 

@@ -5,15 +5,16 @@ import uuid
 from fastapi.responses import RedirectResponse
 import json
 
-import database as database
-import models
-import schemas
-import base62
-import cache
+import app.core.database as database
+import app.models as models
+import app.schemas as schemas
+import app.utils.base62 as base62
+import app.core.cache as cache
 
-import url_repository
+import app.url_repository as url_repository
 
-from dependencies import rate_limit
+from app.core.dependencies import rate_limit
+from app.utils.background import increment_access_in_background
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -56,7 +57,7 @@ def redirect_to_url(background_task: BackgroundTasks, identifier: str = Path(...
     cached_url = cache.redis_client.get(cache_key)
     if cached_url:
         cached_data = json.loads(cached_url)
-        background_task.add_task(url_repository.increment_access_count, cached_data["id"], db)
+        background_task.add_task(increment_access_in_background, cached_data["id"])
         return RedirectResponse(url=cached_data["url"])
 
     url_item = url_repository.get_url_by_identifier(identifier, db)
@@ -67,7 +68,7 @@ def redirect_to_url(background_task: BackgroundTasks, identifier: str = Path(...
     cache_payload = json.dumps({"id": url_item.id, "url": url_item.url})
     cache.redis_client.set(cache_key, cache_payload, ex=3600)
 
-    background_task.add_task(url_repository.increment_access_count, url_item.id, db)
+    background_task.add_task(increment_access_in_background, url_item.id)
     return RedirectResponse(url=url_item.url)
 
 @app.get("/{identifier}/stats", response_model=schemas.URLItem)
@@ -80,8 +81,8 @@ def get_url_stats(identifier: str = Path(...), db: Session = Depends(database.ge
     return url_item
 
 @app.delete("/{identifier}", status_code=status.HTTP_204_NO_CONTENT)
-def detlete_url(identifier: str = Path(...), db: Session = Depends(database.get_db)):
-    url_item = url_repository.get_url_by_identifier_and_delete(identifier, db)
+def delete_url(identifier: str = Path(...), db: Session = Depends(database.get_db)):
+    url_item = url_repository.get_url_by_identifier(identifier, db)
     if not url_item:
         raise HTTPException(status_code=404, detail="Link not found")
 

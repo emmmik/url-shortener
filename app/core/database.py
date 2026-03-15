@@ -6,7 +6,12 @@ from sqlalchemy.ext.declarative import declarative_base
 
 load_dotenv()
 
-engine = create_engine(os.getenv("DATABASE_URL"))
+_database_url = os.getenv("DATABASE_URL")
+
+if not _database_url:
+    raise ValueError("DATABASE_URL environment variable is required")
+
+engine = create_engine(_database_url)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

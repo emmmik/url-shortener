@@ -1,7 +1,7 @@
 from sqlalchemy import delete, update
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
-from models import URLItem
+from app.models import URLItem
 
 def get_url_by_url_id(url_id: int, db: Session) -> URLItem | None:
     return db.query(URLItem).filter(URLItem.id == url_id).first()

@@ -1,4 +1,4 @@
-import base62
+import app.utils.base62 as base62
 
 def decode_short_code(short_code: str) -> int:
     try:
