@@ -1,4 +1,4 @@
-from fastapi import Request, HTTPException, status, Path
+from fastapi import Request, HTTPException, status
 import cache
 import utils
 
@@ -26,8 +26,8 @@ def rate_limit(request: Request):
             detail="Rate limit exceeded"
         )
 
-def get_valid_url_id(short_code: str = Path(...)) -> int:
+def get_valid_url_id(identifier) -> int:
     try:
-        return utils.decode_short_code(short_code)
+        return utils.decode_short_code(identifier)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid short code")

@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime
-from datetime import datetime, timezone
+from sqlalchemy.sql import func
 from database import Base
 
 class URLItem(Base):
@@ -9,6 +9,7 @@ class URLItem(Base):
     url = Column(String, index=True)
     short_code = Column(String, unique=True, index=True)
     access_count = Column(Integer, default=0)
+    custom_alias = Column(String, unique=True, index=True, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
