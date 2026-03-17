@@ -1,103 +1,153 @@
 # 🚀 High-Performance URL Shortener
 
-A REST API that shortens long URLs and redirects users via compact, shareable codes. Built with Python and a modern web stack: FastAPI, PostgreSQL, and Redis. Engineered for high throughput using pure Base62 mathematical encoding, read-through caching, and asynchronous background tasks.
+A REST API that shortens long URLs and redirects users via compact, shareable codes. Built with Python, FastAPI, PostgreSQL, and Redis. Supports optional **custom aliases**, Base62 short codes, read-through caching, and non-blocking analytics.
 
 ---
 
-## ✨ Enterprise Features
+## ✨ Features
 
-- **Lightning-Fast Redirects:** Redirects are cached in Redis to completely bypass the database for popular links.
-- **Non-Blocking Analytics:** Click tracking is offloaded to FastAPI background tasks, ensuring the user's redirect is never delayed by database writes.
-- **Atomic Rate Limiting:** The creation endpoint is protected by an IP-based Redis fixed-window counter (10 req/min) to prevent spam and abuse.
-- **Cache Invalidation:** Deleting a link strictly synchronizes the database deletion with a Redis memory wipe to prevent "ghost links."
-- **Algorithmic Efficiency:** Short codes are generated using Base62 integer-to-string conversion rather than heavy UUIDs, saving massive index space.
+- **Shorten URLs** — POST a URL and get a short code (or use an optional custom alias).
+- **Custom aliases** — Optional 5–20 character alphanumeric alias (e.g. `my-link`) in addition to the auto-generated Base62 code.
+- **Dual identifiers** — Open a link by **short code** (e.g. `6`, `1Z`) or **custom alias** (e.g. `my-link`); both use the same path `/{identifier}`.
+- **Fast redirects** — Redirects are cached in Redis (1h TTL) to skip the database on cache hits.
+- **Non-blocking analytics** — Access count is updated in a background task with its own DB session so redirects are never delayed.
+- **Rate limiting** — IP-based limit on the shorten endpoint (10 req/min) via Redis.
+- **Cache invalidation** — Deleting a link removes both short-code and custom-alias entries from Redis.
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Technology                  | Implementation                                                                                                 |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| **Python 3 / FastAPI**      | Async-ready core framework handling routing, dependency injection, and automatic OpenAPI validation (`/docs`). |
-| **PostgreSQL**              | Persistent, relational storage for URLs, short codes, and analytical click counts.                             |
-| **Redis**                   | In-memory data store handling the 1-hour TTL cache and atomic increment rate limiting.                         |
-| **SQLAlchemy & Pydantic**   | ORM database layer combined with strict request/response serialization.                                        |
-| **Docker & Docker Compose** | Containerized architecture for guaranteed parity across local and production environments.                     |
+| Technology | How it's used |
+|------------|----------------|
+| **Python 3 / FastAPI** | API routing, dependency injection, OpenAPI docs at `/docs`. |
+| **PostgreSQL** | Persistent storage for URLs, short codes, custom aliases, and access counts. |
+| **Redis** | 1h TTL redirect cache and atomic rate-limit counters. |
+| **SQLAlchemy** | ORM, session management, and table definitions. |
+| **Pydantic** | Request/response validation (e.g. URL + optional custom alias). |
+| **Docker & Compose** | API, Postgres, and Redis as services; healthchecks and volumes. |
 
 ---
 
-## 📂 Architecture & Structure
+## 📂 Project Structure
 
 ```text
 url-shortener/
-├── main.py              # API routing and background task delegation
-├── dependencies.py      # Bouncers: Base62 validation and IP-based rate limiting
-├── database.py          # PostgreSQL connection pool and session factory
-├── models.py            # SQLAlchemy relational tables
-├── schemas.py           # Pydantic data validation contracts
-├── url_repository.py    # Isolated database transaction logic
-├── cache.py             # Redis client initialization and configuration
-├── utils.py & base62.py # Pure CPU mathematical encoding/decoding
-└── docker-compose.yml   # Infrastructure orchestration
+├── app/
+│   ├── main.py              # FastAPI app, routes (shorten, redirect, stats, delete)
+│   ├── models.py            # SQLAlchemy URL model (url, short_code, custom_alias, access_count)
+│   ├── schemas.py           # Pydantic request/response (URLItemCreate, URLItem)
+│   ├── url_repository.py     # DB operations: get by identifier, increment count, delete
+│   ├── core/
+│   │   ├── database.py      # Engine, SessionLocal, get_db
+│   │   ├── cache.py        # Redis client
+│   │   └── dependencies.py # Rate limiting, get_real_ip
+│   └── utils/
+│       ├── base62.py        # Base62 encode/decode for short codes
+│       ├── helpers.py       # decode_short_code (validation)
+│       └── background.py    # increment_access_in_background (own DB session)
+├── Dockerfile               # Multi-stage Python 3.10 build, non-root user
+├── docker-compose.yml       # api, db, cache with healthchecks
+├── requirements.txt
+└── README.md
 ```
 
 ---
 
-## ⚙️ Local Development (Docker)
+## ⚙️ Running the Project
 
-**1. Start the Infrastructure**
-Boot up PostgreSQL and Redis in the background:
+### Option A: Full stack with Docker Compose
+
+```bash
+docker-compose up -d
+```
+
+- **API:** http://localhost (port 80)
+- **Docs:** http://localhost/docs  
+- Postgres and Redis start with healthchecks; the API uses `db` and `cache` hostnames.
+
+### Option B: Local app, Docker for Postgres & Redis
+
+**1. Start database and cache**
 
 ```bash
 docker-compose up -d db cache
 ```
 
-**2. Configure Environment**
-Create a `.env` file in the project root:
+**2. Environment**
+
+Create a `.env` in the project root:
 
 ```env
 DATABASE_URL=postgresql://admin:password123@localhost:5433/url_shortener
 REDIS_URL=redis://localhost:6379/0
 ```
 
-**3. Run the Application**
+**3. Run the app**
 
 ```bash
 python -m venv venv
-source venv/bin/activate   # On Windows: venv\Scripts\activate
+source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn main:app --reload
+uvicorn app.main:app --reload
 ```
 
-The API is now live at **[http://127.0.0.1:8000](http://127.0.0.1:8000)**. View the interactive Swagger documentation at **[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)**.
+- **API:** http://127.0.0.1:8000  
+- **Docs:** http://127.0.0.1:8000/docs  
 
 ---
 
-## 🚦 Quick Start / API Endpoints
+## 🚦 API Overview
 
-**1. Create a Short Link (POST `/shorten`)**
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/shorten` | Create short link. Body: `{"url": "https://...", "custom_alias": "optional"}`. Rate limited. |
+| `GET` | `/{identifier}` | Redirect to original URL. `identifier` = short code or custom alias. |
+| `GET` | `/{identifier}/stats` | Get URL item (id, short_code, url, custom_alias, access_count, timestamps). |
+| `DELETE` | `/{identifier}` | Delete link and invalidate cache for both short code and alias. |
+
+Custom alias rules: 5–20 characters, letters and numbers only; must be unique.
+
+---
+
+## 📌 Quick Examples
+
+**Create a short link (auto short code)**
 
 ```bash
 curl -X POST http://127.0.0.1:8000/shorten \
-     -H "Content-Type: application/json" \
-     -d '{"url": "https://github.com"}'
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://github.com"}'
 ```
 
-**2. Use the Link (GET `/{short_code}`)**
-_(Follows the 307 redirect directly to the target URL)_
+**Create with custom alias**
+
+```bash
+curl -X POST http://127.0.0.1:8000/shorten \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com", "custom_alias": "my-link"}'
+```
+
+**Open by short code or alias** (use `-L` to follow redirect)
 
 ```bash
 curl -L http://127.0.0.1:8000/6
+curl -L http://127.0.0.1:8000/my-link
 ```
 
-**3. View Analytics (GET `/{short_code}/stats`)**
+**Stats**
 
 ```bash
 curl http://127.0.0.1:8000/6/stats
+curl http://127.0.0.1:8000/my-link/stats
 ```
 
-**4. Delete & Invalidate Cache (DELETE `/{short_code}`)**
+**Delete**
 
 ```bash
 curl -X DELETE http://127.0.0.1:8000/6
+# or
+curl -X DELETE http://127.0.0.1:8000/my-link
 ```
+
+When using Docker Compose for the full stack, replace `http://127.0.0.1:8000` with `http://localhost`.
