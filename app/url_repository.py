@@ -6,6 +6,9 @@ from app.models import URLItem
 def get_url_by_url_id(url_id: int, db: Session) -> URLItem | None:
     return db.query(URLItem).filter(URLItem.id == url_id).first()
 
+def get_all_urls(db: Session) -> list[URLItem]:
+    return db.query(URLItem).all()
+
 def increment_access_count(url_id: int, db: Session) -> URLItem | None:
     stmt = (
         update(URLItem)

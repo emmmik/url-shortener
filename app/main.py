@@ -60,6 +60,11 @@ def shorten_url(item: schemas.URLItemCreate, db: Session = Depends(database.get_
 
     return new_url
 
+@app.get("/get-all-urls", response_model=list[schemas.URLItem])
+def get_all_urls(db: Session = Depends(database.get_db)):
+    urls = url_repository.get_all_urls(db)
+    return urls
+
 @app.get("/{identifier}")
 def redirect_to_url(background_task: BackgroundTasks, identifier: str = Path(...), db: Session = Depends(database.get_db)):
     cache_key = f"url:{identifier}"
