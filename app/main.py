@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from starlette import status
 import uuid
 from fastapi.responses import RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
 import json
 
 import app.core.database as database
@@ -19,6 +20,14 @@ from app.utils.background import increment_access_in_background
 models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
