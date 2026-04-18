@@ -1,6 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 
 interface ShortenUrlResponse {
   id: number;
@@ -19,7 +29,6 @@ interface ShortenUrlRequest {
 export default function ShortenForm() {
   const [url, setUrl] = useState("");
   const [customAlias, setCustomAlias] = useState("");
-  const [result, setResult] = useState<ShortenUrlResponse | null>(null);
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -38,31 +47,57 @@ export default function ShortenForm() {
         body: JSON.stringify(requestBody),
       });
       if (!response.ok) {
-        throw new Error("Failed to shorten URL");
+        throw new Error(response.statusText);
       }
       const data: ShortenUrlResponse = await response.json();
-      setResult(data);
+      toast.success("URL shortened successfully", {
+        position: "top-center",
+        description: `Your short URL is: ${data.short_code}`,
+        action: {
+          label: "Copy",
+          onClick: () => {
+            navigator.clipboard.writeText(
+              `http://localhost/${data.short_code}`,
+            );
+            toast.success("Short URL copied to clipboard", {
+              position: "top-center",
+            });
+          },
+        },
+      });
       console.log(data);
     } catch (error) {
       console.error("Error:", error);
     }
   };
   return (
-    <form onSubmit={handleSubmit}>
-      <input
-        type="url"
-        value={url}
-        onChange={(e) => setUrl(e.target.value)}
-        placeholder="Enter URL"
-        required
-      />
-      <input
-        type="text"
-        value={customAlias}
-        onChange={(e) => setCustomAlias(e.target.value)}
-        placeholder="Custom alias (optional)"
-      />
-      <button type="submit">Shorten</button>
-    </form>
+    <Card className="w-full max-w-md mx-auto mt-20">
+      <CardHeader>
+        <CardTitle>Shorten your URL</CardTitle>
+        <CardDescription>
+          Create a short and easy to remember URL for your long links.
+        </CardDescription>
+        <CardContent>
+          <form onSubmit={handleSubmit}>
+            <Input
+              type="text"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="Enter URL"
+              className="mb-2"
+              required
+            />
+            <Input
+              type="text"
+              value={customAlias}
+              onChange={(e) => setCustomAlias(e.target.value)}
+              className="mb-2"
+              placeholder="Custom alias (optional)"
+            />
+            <Button type="submit">Shorten</Button>
+          </form>
+        </CardContent>
+      </CardHeader>
+    </Card>
   );
 }
