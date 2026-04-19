@@ -16,4 +16,9 @@ export interface URLItemCreate {
 export interface UrlTableProps {
   urls: URLItem[];
   loading: boolean;
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
 }
