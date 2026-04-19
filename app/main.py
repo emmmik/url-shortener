@@ -4,6 +4,7 @@ from starlette import status
 import uuid
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
+from datetime import datetime, timezone
 import json
 
 import app.core.database as database
@@ -64,6 +65,20 @@ def shorten_url(item: schemas.URLItemCreate, db: Session = Depends(database.get_
 def get_all_urls(db: Session = Depends(database.get_db)):
     urls = url_repository.get_all_urls(db)
     return urls
+
+@app.patch("/change-custom-alias/{short_code}", response_model=schemas.URLItem)
+def change_custom_alias(item: schemas.URLItemUpdate, short_code: str = Path(...), db: Session = Depends(database.get_db)):
+    url_item = url_repository.get_url_by_identifier(short_code, db)
+    if not url_item:
+        raise HTTPException(status_code=404, detail="Link not found")
+
+    url_item.custom_alias = item.custom_alias
+    url_item.updated_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(url_item)
+    
+    return url_item
 
 @app.get("/{identifier}")
 def redirect_to_url(background_task: BackgroundTasks, identifier: str = Path(...), db: Session = Depends(database.get_db)):

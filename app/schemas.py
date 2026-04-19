@@ -32,3 +32,14 @@ class URLItem(URLItemBase):
     model_config = {
         "from_attributes": True
     }
+
+class URLItemUpdate(BaseModel):
+    custom_alias: str
+
+    @field_validator("custom_alias")
+    def validate_custom_alias(cls, v: str) -> str:
+        if not ALIAS_REGEX.match(v):
+            raise ValueError("Custom alias must contain only letters and numbers")
+        if len(v) < 5 or len(v) > 20:
+            raise ValueError("Custom alias must be between 5 and 20 characters long")
+        return v

@@ -32,7 +32,15 @@ export default function ShortenForm({ injectNewUrl }: InjectNewUrlProps) {
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     console.log(url, customAlias);
-
+    if (
+      (customAlias.length < 5 || customAlias.length > 20) &&
+      customAlias !== ""
+    ) {
+      toast.error("Custom alias must be between 5 and 20 characters long", {
+        position: "top-center",
+      });
+      return;
+    }
     const requestBody: URLItemCreate = {
       url,
       custom_alias: customAlias || undefined,

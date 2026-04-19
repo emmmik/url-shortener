@@ -112,7 +112,7 @@ export default function UrlTable({
               <TableRow
                 key={url.id}
                 onClick={() => router.push(`/links/${url.short_code}`)}
-                className="border-b border-neutral-200 last:border-b-0 hover:bg-neutral-50/80"
+                className="cursor-pointer border-b border-neutral-200 last:border-b-0 hover:bg-neutral-50/80"
               >
                 <TableCell className="min-w-0 border-r border-neutral-200 p-3 text-sm text-black last:border-r-0">
                   <UrlWithFavicon url={url.url} />
