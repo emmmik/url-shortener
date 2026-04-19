@@ -94,6 +94,19 @@ export default function UrlTable({
               </TableRow>
             ))}
           </TableBody>
+        ) : total === 0 ? (
+          <TableBody>
+            <TableRow className="border-0 hover:bg-transparent">
+              <TableCell
+                colSpan={4}
+                className="p-10 text-center text-sm text-neutral-600"
+              >
+                Press{" "}
+                <span className="font-medium text-black">Add a new link</span>{" "}
+                to shorten a URL.
+              </TableCell>
+            </TableRow>
+          </TableBody>
         ) : (
           <TableBody>
             {urls.map((url) => (
