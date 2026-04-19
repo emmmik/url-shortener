@@ -1,5 +1,3 @@
-"use client";
-
 import {
   Table,
   TableBody,
@@ -18,11 +16,11 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
-import { UrlTableProps } from "@/types";
+import { URLTableProps } from "@/types";
 import { UrlWithFavicon } from "./UrlWithFavicon";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
-/** Page numbers and gaps for shadcn-style pagination when there are many pages */
 function paginationSlots(
   current: number,
   last: number,
@@ -48,10 +46,11 @@ export default function UrlTable({
   total,
   totalPages,
   onPageChange,
-}: UrlTableProps) {
+}: URLTableProps) {
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = total === 0 ? 0 : Math.min(page * pageSize, total);
   const slots = totalPages > 0 ? paginationSlots(page, totalPages) : [];
+  const router = useRouter();
 
   return (
     <>
@@ -112,6 +111,7 @@ export default function UrlTable({
             {urls.map((url) => (
               <TableRow
                 key={url.id}
+                onClick={() => router.push(`/links/${url.short_code}`)}
                 className="border-b border-neutral-200 last:border-b-0 hover:bg-neutral-50/80"
               >
                 <TableCell className="min-w-0 border-r border-neutral-200 p-3 text-sm text-black last:border-r-0">

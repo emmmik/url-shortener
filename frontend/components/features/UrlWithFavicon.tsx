@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Globe } from "lucide-react";
 import Image from "next/image";
 
+import { URLWithFaviconProps } from "@/types";
+
 function getHostname(urlString: string): string | null {
   try {
     const normalized = /^https?:\/\//i.test(urlString)
@@ -19,7 +21,10 @@ function getHostname(urlString: string): string | null {
 const iconShell =
   "flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted/40 shadow-sm ring-1 ring-black/[0.06] dark:ring-white/10";
 
-export function UrlWithFavicon({ url }: { url: string }) {
+export function UrlWithFavicon({
+  url,
+  urlTextClassName = "min-w-0 flex-1 truncate",
+}: URLWithFaviconProps) {
   const hostname = getHostname(url);
   const [iconFailed, setIconFailed] = useState(false);
 
@@ -29,7 +34,7 @@ export function UrlWithFavicon({ url }: { url: string }) {
         <span className={iconShell}>
           <Globe className="size-3 text-muted-foreground" aria-hidden />
         </span>
-        <span className="min-w-0 flex-1 truncate">{url}</span>
+        <span className={urlTextClassName}>{url}</span>
       </span>
     );
   }
@@ -55,7 +60,7 @@ export function UrlWithFavicon({ url }: { url: string }) {
           <Globe className="size-3 text-muted-foreground" aria-hidden />
         </span>
       )}
-      <span className="min-w-0 flex-1 truncate">{url}</span>
+      <span className={urlTextClassName}>{url}</span>
     </span>
   );
 }

@@ -13,7 +13,7 @@ export interface URLItemCreate {
   custom_alias?: string;
 }
 
-export interface UrlTableProps {
+export interface URLTableProps {
   urls: URLItem[];
   loading: boolean;
   page: number;
@@ -21,4 +21,13 @@ export interface UrlTableProps {
   total: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+}
+
+export interface URLStatsProps {
+  params: Promise<{ id: string }>;
+}
+
+export interface URLWithFaviconProps {
+  url: string;
+  urlTextClassName?: string;
 }

@@ -16,7 +16,9 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchUrls = async () => {
       try {
-        const response = await fetch("http://localhost/get-all-urls");
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/get-all-urls`,
+        );
         if (!response.ok) {
           throw new Error(response.statusText);
         }

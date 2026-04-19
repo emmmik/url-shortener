@@ -38,13 +38,16 @@ export default function ShortenForm({ injectNewUrl }: InjectNewUrlProps) {
       custom_alias: customAlias || undefined,
     };
     try {
-      const response = await fetch("http://localhost/shorten", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/shorten`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
         },
-        body: JSON.stringify(requestBody),
-      });
+      );
       if (!response.ok) {
         throw new Error(response.statusText);
       }
