@@ -13,22 +13,12 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 
-interface URLItem {
-  id: number;
-  short_code: string;
-  access_count: number;
-  custom_alias?: string | null;
-  created_at: string;
-  updated_at: string;
-  url: string;
-}
+import { URLItem, URLItemCreate } from "@/types";
 
-interface URLItemCreate {
-  url: string;
-  custom_alias?: string;
+interface InjectNewUrlProps {
+  injectNewUrl: (url: URLItem) => void;
 }
-
-export default function ShortenForm() {
+export default function ShortenForm({ injectNewUrl }: InjectNewUrlProps) {
   const [url, setUrl] = useState("");
   const [customAlias, setCustomAlias] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -74,6 +64,7 @@ export default function ShortenForm() {
           },
         },
       });
+      injectNewUrl(data);
       closeForm();
     } catch (error) {
       console.error("Error:", error);
