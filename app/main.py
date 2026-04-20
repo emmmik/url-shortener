@@ -22,9 +22,18 @@ models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI()
 
+
+origins = [
+    "http://localhost:3000", 
+    "https://url-shortener-git-main-emmiks-projects.vercel.app", 
+    "https://urlshortener.emmikdev.de"
+]
+
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -77,7 +86,7 @@ def change_custom_alias(item: schemas.URLItemUpdate, short_code: str = Path(...)
 
     db.commit()
     db.refresh(url_item)
-    
+
     return url_item
 
 @app.get("/{identifier}")
