@@ -17,12 +17,15 @@ jobs:
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            set -euo pipefail
+
             if [ ! -d "/home/ubuntu/url-shortener" ]; then
               git clone https://github.com/emmmik/url-shortener.git /home/ubuntu/url-shortener
             fi
 
             cd /home/ubuntu/url-shortener
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
 
             sudo docker compose down
 
