@@ -2,13 +2,23 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { URLItem } from "@/types";
 import { UrlWithFavicon } from "./UrlWithFavicon";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
@@ -166,6 +176,28 @@ export default function UrlStats({
   updated_at,
 }: URLItem) {
   const router = useRouter();
+
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  const handleDeleteLink = async () => {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/${short_code}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    );
+    if (!response.ok) {
+      toast.error("Failed to delete link", { position: "top-center" });
+      return;
+    }
+    toast.success("Link deleted successfully", { position: "top-center" });
+    router.push("/");
+    router.refresh();
+  };
+
   return (
     <div className="w-full">
       <header className="mb-4">
@@ -203,6 +235,43 @@ export default function UrlStats({
           <StatRow label="Last updated" value={formatDate(updated_at)} />
         </dl>
       </article>
+      <div className="mt-4 flex">
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button
+              type="button"
+              variant="destructive"
+              className="rounded-none border border-2 border-red-600 py-4"
+            >
+              <Trash2 className="size-4 stroke-[2.25]" aria-hidden />
+              Delete link
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>
+                Are you sure you want to delete this link?
+              </DialogTitle>
+              <DialogDescription>
+                This action cannot be undone. This will permanently delete the
+                link and all associated data.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button
+                onClick={() => {
+                  handleDeleteLink();
+                }}
+              >
+                Delete link
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 }
