@@ -67,7 +67,7 @@ export default function ShortenForm({ injectNewUrl }: InjectNewUrlProps) {
           label: "Copy",
           onClick: () => {
             navigator.clipboard.writeText(
-              `http://localhost/${data.short_code}`,
+              `https://urlshortener.emmikdev.de/${data.short_code}`,
             );
             toast.success("Short URL copied to clipboard", {
               position: "top-center",
