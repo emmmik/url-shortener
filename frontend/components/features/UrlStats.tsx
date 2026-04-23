@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Copy, Pencil, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -166,6 +166,42 @@ function CustomAliasRow({
   );
 }
 
+function ShortLinkRow({ short_code }: Pick<URLItem, "short_code">) {
+  const shortLink = `api.emmikdev.de/${short_code}`;
+
+  const copyShortLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shortLink);
+      toast.success("Short link copied", { position: "top-center" });
+    } catch {
+      toast.error("Failed to copy short link", { position: "top-center" });
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 gap-1 border-b border-neutral-200 px-5 py-3.5 last:border-b-0 sm:grid-cols-[minmax(10rem,12rem)_1fr] sm:gap-4">
+      <dt className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+        Short link
+      </dt>
+      <dd className="min-w-0 text-sm font-medium text-black">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="min-w-0 break-all">{shortLink}</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            className="shrink-0 rounded-none text-neutral-600 hover:text-black"
+            aria-label="Copy short link"
+            onClick={() => void copyShortLink()}
+          >
+            <Copy className="size-3.5 stroke-[2.25]" aria-hidden />
+          </Button>
+        </div>
+      </dd>
+    </div>
+  );
+}
+
 export default function UrlStats({
   id,
   url,
@@ -228,6 +264,7 @@ export default function UrlStats({
           <p className="mt-0.5 text-xs text-neutral-600">ID {id}</p>
         </div>
         <dl>
+          <ShortLinkRow short_code={short_code} />
           <StatRow label="Short code" value={short_code} />
           <CustomAliasRow short_code={short_code} custom_alias={custom_alias} />
           <StatRow label="Total clicks" value={String(access_count)} />
