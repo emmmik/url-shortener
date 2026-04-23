@@ -1,10 +1,28 @@
 from sqlalchemy import delete, update
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
+import uuid
+
 from app.models import URLItem
+import app.utils.base62 as base62
 
 def get_url_by_url_id(url_id: int, db: Session) -> URLItem | None:
     return db.query(URLItem).filter(URLItem.id == url_id).first()
+
+
+def create_url(url: str, db: Session, custom_alias: str | None = None) -> URLItem:
+    temp_code = f"temp_{uuid.uuid4().hex[:8]}"
+    new_url = URLItem(url=url, short_code=temp_code, custom_alias=custom_alias)
+
+    db.add(new_url)
+    db.commit()
+    db.refresh(new_url)
+
+    new_url.short_code = base62.encode(new_url.id)
+    db.commit()
+    db.refresh(new_url)
+
+    return new_url
 
 def get_all_urls(db: Session) -> list[URLItem]:
     return db.query(URLItem).all()
