@@ -1,5 +1,5 @@
 ---
-- name: Install Docker on Frankfurt Server
+- name: Provision URL Shortener Server
   hosts: webservers
   become: yes
 

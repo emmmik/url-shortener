@@ -1,4 +1,4 @@
-name: Deploy URL Shortener to AWS
+name: Deploy URL Shortener to Hetzner
 
 on:
   push:
@@ -10,23 +10,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: SSH into AWS and Deploy
+      - name: SSH into Hetzner and Deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
-          username: ubuntu
+          username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -euo pipefail
 
-            if [ ! -d "/home/ubuntu/url-shortener" ]; then
-              git clone https://github.com/emmmik/url-shortener.git /home/ubuntu/url-shortener
+            if [ ! -d "/root/url-shortener" ]; then
+              git clone https://github.com/emmmik/url-shortener.git /root/url-shortener
             fi
 
-            cd /home/ubuntu/url-shortener
+            cd /root/url-shortener
             git fetch origin main
             git reset --hard origin/main
 
-            sudo docker compose down
+            docker compose down
 
-            sudo docker compose up -d --build
+            docker compose up -d --build
