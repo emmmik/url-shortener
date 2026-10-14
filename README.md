@@ -31,11 +31,11 @@ Each layer is containerized with multi-stage builds optimized for security (non-
 
 ## Quick Start
 
-**Docker Compose** (recommended — everything in one command):
+**Docker Compose** (recommended — API, Postgres and Redis in one command):
 ```bash
 docker compose up -d
-# API: http://localhost/docs
-# Frontend: http://localhost:3000
+# API: http://localhost:8001/docs
+# Frontend: http://localhost:3000 (run it separately, see Option 3)
 ```
 
 **API only** (Postgres + Redis in Docker, API locally):
@@ -101,8 +101,8 @@ uvicorn app.main:app --reload
         ┌──────────────────┴──────────────────┐
         │                                     │
 ┌───────▼─────────────┐           ┌──────────▼────────────┐
-│   Frontend          │           │  API Gateway/        │
-│ (Next.js 16)        │           │  Load Balancer       │
+│   Frontend          │           │  Caddy (TLS +        │
+│ (Next.js 16)        │           │  reverse proxy)      │
 │  - App Router       │           │  (Production)        │
 │  - Server Components│           │                      │
 │  - Dashboard        │           └──────────┬───────────┘
@@ -211,20 +211,46 @@ Try the live demo: https://url-shortener.emmikdev.de
 
 ### Production Environment
 
-The application is deployed on a production server with the following setup:
+Production runs on a Hetzner Cloud server. One Docker Compose stack on the box runs the API, Postgres and Redis, with Caddy in front handling TLS for `api.emmikdev.de` and proxying to the API on loopback (`127.0.0.1:8001`). The frontend is deployed separately on Vercel and calls the API at that domain. DNS for `emmikdev.de` is managed at IONOS, where the `api` A record points at the server.
 
-- **Docker Compose orchestration** with health checks on all services
-- **Multi-stage Dockerfile** separating build and runtime stages for security and efficiency
-- **Non-root user execution** to limit container privileges
-- **Environment variable management** for configuration across environments
-- **CI/CD via GitHub Actions** for automated testing and deployment
+The request path is short: browser → Caddy (443) → uvicorn in the `api` container → Postgres and Redis on the Compose network. Only Caddy is exposed publicly; the database and cache publish ports on loopback for local debugging and are unreachable from the internet.
 
-### Docker Optimization
+### Deploying
 
-- **Build Stage:** Installs dependencies and builds the application
-- **Runtime Stage:** Uses minimal Alpine base image, copies only runtime artifacts
-- **Health Checks:** Postgres and Redis include TCP health checks; API includes HTTP health endpoint
-- **Port Mapping:** Docker Compose maps port 80 to container 8000 for zero-configuration access
+Every push to `main` triggers `.github/workflows/deploy.yml`. It SSHes into the server, pulls the latest commit and rebuilds the stack:
+
+```bash
+git fetch origin main
+git reset --hard origin/main
+docker compose down
+docker compose up -d --build
+```
+
+Two repository secrets are needed (Settings → Secrets and variables → Actions):
+
+| Secret | Value |
+|--------|-------|
+| `SERVER_IP` | Public IP of the server |
+| `SSH_PRIVATE_KEY` | Private key the server accepts for root login |
+
+### Setting Up a Fresh Server
+
+`infrastructure/setup_server.yml` is an Ansible playbook that installs Docker and Compose V2 on a bare server:
+
+```bash
+cd infrastructure
+ansible-playbook -i inventory.ini setup_server.yml
+```
+
+`inventory.ini` holds the server address, SSH user and key path. It is gitignored — each machine keeps its own.
+
+The API's Caddy site block lives in `etc/caddy/api.emmikdev.de.conf`. Add it to the server's Caddyfile (or import the file) and reload Caddy. Certificates are issued and renewed automatically once the DNS record points at the server.
+
+### Docker Build
+
+- **Build stage** installs dependencies into a virtualenv
+- **Runtime stage** copies over just the virtualenv and the app, and runs it as a non-root user
+- **Compose health checks** hold Postgres and Redis until `pg_isready` / `redis-cli ping` pass, and the API starts only after both are healthy
 
 ### Environment Configuration
 
@@ -412,10 +438,13 @@ url-shortener/
 │   ├── package.json
 │   └── tsconfig.json
 ├── Dockerfile                    # Multi-stage build
-├── docker-compose.yml           # Services: api, frontend, db, cache
+├── docker-compose.yml           # Services: api, db, cache
 ├── requirements.txt             # Python dependencies
 ├── .env.example                 # Environment template
 ├── locustfile.py                # Load testing (optional)
+├── etc/caddy/                   # Caddy site block for api.emmikdev.de
+├── infrastructure/              # Ansible playbook and server inventory
+├── .github/workflows/deploy.yml # Deploys on push to main
 └── README.md
 ```
 

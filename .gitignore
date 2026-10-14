@@ -44,6 +44,9 @@ htmlcov/
 *.log
 *.tmp
 
+# Command Code
+.commandcode/
+
 # Terraform State and Plugins
 .terraform/
 *.tfstate
