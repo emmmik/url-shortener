@@ -1,4 +1,12 @@
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Response, Path
+from fastapi import (
+    FastAPI,
+    Depends,
+    HTTPException,
+    BackgroundTasks,
+    Response,
+    Path,
+    Request,
+)
 from sqlalchemy.orm import Session
 from starlette import status
 import uuid
@@ -6,6 +14,9 @@ from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timezone
 import json
+import requests
+import os
+from dotenv import load_dotenv
 
 import app.core.database as database
 import app.models as models
@@ -20,16 +31,19 @@ from app.utils.background import increment_access_in_background
 
 models.Base.metadata.create_all(bind=database.engine)
 
+load_dotenv()
+
+HUBSPOT_ACCESS_TOKEN = os.getenv("HUBSPOT_ACCESS_TOKEN")
+HUBSPOT_API_URL = os.getenv("HUBSPOT_API_URL")
+
 app = FastAPI()
 
 
 origins = [
-    "http://localhost:3000", 
-    "https://url-shortener-git-main-emmiks-projects.vercel.app", 
-    "https://urlshortener.emmikdev.de"
+    "http://localhost:3000",
+    "https://url-shortener-git-main-emmiks-projects.vercel.app",
+    "https://urlshortener.emmikdev.de",
 ]
-
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,12 +53,62 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
     return Response(status_code=204)
 
-@app.post("/shorten", response_model=schemas.URLItem, status_code=status.HTTP_201_CREATED)
-def shorten_url(item: schemas.URLItemCreate, db: Session = Depends(database.get_db), _ = Depends(rate_limit)):
+
+@app.post("/api/hubspot-webhook")
+async def handle_hubspot_webhook(
+    request: Request, db: Session = Depends(database.get_db)
+):
+    try:
+        payload = await request.json()
+
+        event = payload[0]
+        contact_id = event.get("objectId")
+
+        if not contact_id:
+            raise HTTPException(status_code=400, detail="Missing objectId")
+
+        destination_url = f"https://we7.com/demo?client_id={contact_id}"
+        created_url = url_repository.create_url(destination_url, db)
+        identifier = created_url.custom_alias or created_url.short_code
+        custom_tracking_url = str(request.base_url).rstrip("/") + f"/{identifier}"
+
+        update_payload = {"properties": {"custom_tracking_url": custom_tracking_url}}
+
+        response = requests.patch(
+            f"{HUBSPOT_API_URL}/{contact_id}",
+            headers={
+                "Authorization": f"Bearer {HUBSPOT_ACCESS_TOKEN}",
+                "Content-Type": "application/json",
+            },
+            json=update_payload,
+        )
+
+        if response.status_code >= 400:
+            raise HTTPException(
+                status_code=502,
+                detail=f"HubSpot update failed with status {response.status_code}",
+            )
+
+        print("URL: " + custom_tracking_url + " has successfully been pasted")
+        return {"status": "success", "short_url": custom_tracking_url}
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post(
+    "/shorten", response_model=schemas.URLItem, status_code=status.HTTP_201_CREATED
+)
+def shorten_url(
+    item: schemas.URLItemCreate,
+    db: Session = Depends(database.get_db),
+    _=Depends(rate_limit),
+):
     if item.custom_alias:
         existing_alias = url_repository.get_url_by_identifier(item.custom_alias, db)
         if existing_alias:
@@ -70,13 +134,19 @@ def shorten_url(item: schemas.URLItemCreate, db: Session = Depends(database.get_
 
     return new_url
 
+
 @app.get("/get-all-urls", response_model=list[schemas.URLItem])
 def get_all_urls(db: Session = Depends(database.get_db)):
     urls = url_repository.get_all_urls(db)
     return urls
 
+
 @app.patch("/change-custom-alias/{short_code}", response_model=schemas.URLItem)
-def change_custom_alias(item: schemas.URLItemUpdate, short_code: str = Path(...), db: Session = Depends(database.get_db)):
+def change_custom_alias(
+    item: schemas.URLItemUpdate,
+    short_code: str = Path(...),
+    db: Session = Depends(database.get_db),
+):
     url_item = url_repository.get_url_by_identifier(short_code, db)
     if not url_item:
         raise HTTPException(status_code=404, detail="Link not found")
@@ -89,8 +159,13 @@ def change_custom_alias(item: schemas.URLItemUpdate, short_code: str = Path(...)
 
     return url_item
 
+
 @app.get("/{identifier}")
-def redirect_to_url(background_task: BackgroundTasks, identifier: str = Path(...), db: Session = Depends(database.get_db)):
+def redirect_to_url(
+    background_task: BackgroundTasks,
+    identifier: str = Path(...),
+    db: Session = Depends(database.get_db),
+):
     cache_key = f"url:{identifier}"
     cached_url = cache.redis_client.get(cache_key)
     if cached_url:
@@ -109,14 +184,16 @@ def redirect_to_url(background_task: BackgroundTasks, identifier: str = Path(...
     background_task.add_task(increment_access_in_background, url_item.id)
     return RedirectResponse(url=url_item.url)
 
+
 @app.get("/{identifier}/stats", response_model=schemas.URLItem)
 def get_url_stats(identifier: str = Path(...), db: Session = Depends(database.get_db)):
     url_item = url_repository.get_url_by_identifier(identifier, db)
 
     if not url_item:
         raise HTTPException(status_code=404, detail="Link not found")
-    
+
     return url_item
+
 
 @app.delete("/{identifier}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_url(identifier: str = Path(...), db: Session = Depends(database.get_db)):
@@ -129,5 +206,5 @@ def delete_url(identifier: str = Path(...), db: Session = Depends(database.get_d
     cache.redis_client.delete(f"url:{url_item.short_code}")
     if url_item.custom_alias:
         cache.redis_client.delete(f"url:{url_item.custom_alias}")
-    
+
     return Response(status_code=status.HTTP_204_NO_CONTENT, content=None)
